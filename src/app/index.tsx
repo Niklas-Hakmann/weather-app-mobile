@@ -1,30 +1,40 @@
+import { loadCache, saveCache } from "@/services/cache";
+import { getWeather, getWeatherByCoords, Weather } from "@/services/weather";
+import * as Location from "expo-location";
+import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
-import { Link } from "expo-router";
-import * as Location from "expo-location";
-import { getWeather, getWeatherByCoords, Weather } from "@/services/weather";
 
 export default function Index() {
   const [data, setData] = useState<Weather | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
-useEffect(() => {
-  (async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setData(await getWeather("Odense")); // fallback
-        return;
+  useEffect(() => {
+    (async () => {
+      const cached = await loadCache<Weather>("weather");
+      if (cached) {
+        setData(cached.value);
+        setSavedAt(cached.savedAt);
       }
-      const pos = await Location.getCurrentPositionAsync({});
-      setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-      setData(await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude));
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  })();
-}, []);
+
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        const fresh =
+          status === "granted"
+            ? await Location.getCurrentPositionAsync({}).then((pos) =>
+                getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+              )
+            : await getWeather("Odense");
+
+        setData(fresh);
+        setSavedAt(null);
+        await saveCache("weather", fresh);
+      } catch (e) {
+        if (!cached) setError((e as Error).message);
+      }
+    })();
+  }, []);
 
   if (error) return <Text>{error}</Text>;
   if (!data) return <ActivityIndicator />;
@@ -34,11 +44,24 @@ useEffect(() => {
       <Text style={{ fontSize: 24 }}>{data.name}</Text>
       <Text style={{ fontSize: 48 }}>{Math.round(data.main.temp)}°</Text>
       <Text>{data.weather[0].description}</Text>
-        {coords && (
-    <Link href={{ pathname: "/forecast", params: { lat: coords.lat, lon: coords.lon } }} style={{ marginTop: 24, color: "#007AFF" }}>
-      Se 5-dages prognose
-    </Link>
-  )}
+      {savedAt && (
+        <Text style={{ color: "gray", marginTop: 8 }}>
+          Offline: viser data fra{" "}
+          {new Date(savedAt).toLocaleTimeString("da-DK", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      )}
+      <Link
+        href={{
+          pathname: "/forecast",
+          params: { lat: data.coord.lat, lon: data.coord.lon },
+        }}
+        style={{ marginTop: 24, color: "#007AFF" }}
+      >
+        Se 5-dages prognose
+      </Link>
     </View>
   );
 }

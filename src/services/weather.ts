@@ -4,6 +4,7 @@ const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
 export type Weather = {
   name: string;
+  coord: { lat: number; lon: number };
   main: { temp: number };
   weather: { description: string }[];
 };
