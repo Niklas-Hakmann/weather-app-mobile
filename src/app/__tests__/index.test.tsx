@@ -37,6 +37,13 @@ beforeEach(() => {
 });
 
 describe("Index screen", () => {
+    it("shows a loading indicator before any data arrives", async () => {
+    mockedRequestPermissions.mockReturnValue(new Promise(() => {}));
+
+    render(<Index />);
+
+    await waitFor(() => expect(screen.getByTestId("loading-indicator")).toBeTruthy());
+    });
   it("falls back to Odense when location permission is denied", async () => {
     mockedRequestPermissions.mockResolvedValue({ status: "denied" });
     mockedGetWeather.mockResolvedValue(weather);
