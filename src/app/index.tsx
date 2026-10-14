@@ -35,9 +35,10 @@ export default function Index() {
       }
     })();
   }, []);
+  //Having [] in end means it only runs on first render - this render is called mount
 
   if (error) return <Text>{error}</Text>;
-  if (!data) return <ActivityIndicator />;
+ if (!data) return <ActivityIndicator testID="loading-indicator" />;
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
